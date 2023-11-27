@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\EditFileRequest;
 use App\Http\Requests\ShareFileRequest;
 use App\Http\Requests\StoreFileRequest;
+use App\Http\Requests\RequestFileRequest;
+use App\Http\Requests\ApproveFileRequest;
 use App\Models\File;
 use App\Models\SharedFile;
 use App\Models\User;
+use App\Models\ShareRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,25 +30,39 @@ class FileController extends Controller
     {
         $userId = Auth::id();
         $sharedFiles = SharedFile::join('permissions', 'permissions.id', '=', 'shared_files.shared_permission_id')
-                        ->join('files', 'files.id', '=', 'shared_files.file_id')
-                        ->join('users', 'users.id', '=', 'files.uploaded_by_user_id')
-                        ->select('shared_files.*', 'files.file_name', 'files.file_description', 'users.name', 'permissions.permission_name')
-                        ->where('shared_files.shared_with_user_id', $userId)
-                        ->orderByDesc('shared_files.created_at')
-                        ->get();
+            ->join('files', 'files.id', '=', 'shared_files.file_id')
+            ->join('users', 'users.id', '=', 'files.uploaded_by_user_id')
+            ->select('shared_files.*', 'files.file_name', 'files.file_description', 'users.name', 'permissions.permission_name')
+            ->where('shared_files.shared_with_user_id', $userId)
+            ->orderByDesc('shared_files.created_at')
+            ->get();
         return response()->json($sharedFiles);
     }
 
     // Display all files uploaded by other users
     public function showAllFiles()
     {
-
+        $userId = Auth::id();
+        $sharedFiles = SharedFile::where('shared_with_user_id', '=', $userId)->pluck('file_id');
+        $allFiles = File::where('uploaded_by_user_id', '!=', $userId)
+            ->whereNotIn('files.id', $sharedFiles)
+            ->join('users', 'users.id', '=', 'files.uploaded_by_user_id')
+            ->orderByDesc('files.created_at')
+            ->get();
+        return response()->json($allFiles);
     }
 
     // Display all requests from other users to share the file
     public function showShareRequests()
     {
-
+        $userId = Auth::id();
+        $requestedFiles = ShareRequest::join('files', 'files.id', '=', 'share_requests.requested_file_id')
+            ->join('permissions', 'permissions.id', '=', 'share_requests.requested_permission_id')
+            ->join('users', 'users.id', '=', 'share_requests.requested_by_user_id')
+            ->where('files.uploaded_by_user_id', $userId)
+            ->orderByDesc('share_requests.created_at')
+            ->get();
+        return response()->json($requestedFiles);
     }
 
     // Upload file
@@ -79,15 +96,56 @@ class FileController extends Controller
     }
 
     // Request file owner to share the file
-    public function requestToShare(Request $request)
+    public function requestToShare(RequestFileRequest $request)
     {
+        $userId = Auth::id();
+        $data = $request->validated();
+        $requestedFileId = $data['requested_file_id'];
+        $requestedPermissionId = $data['requested_permission_id'];
 
+        ShareRequest::create([
+            'requested_file_id' => $requestedFileId,
+            'requested_by_user_id' => $userId,
+            'requested_permission_id' => $requestedPermissionId,
+        ]);
+
+        return response()->json([
+            'message' => 'Request send successfully.'
+        ], 201);
     }
 
     // Approve request sent by other users to share the file
-    public function approveRequest(Request $request)
+    public function approveRequest(ApproveFileRequest $request)
     {
+        $data = $request->validated();
+        $shareRequest = ShareRequest::where('requested_file_id', $data['requested_file_id'])->first();
 
+        if (!$shareRequest) {
+            return response()->json(['message' => 'Share request not found.'], 404);
+        }
+
+        $checkExist = SharedFile::where('file_id', $data['requested_file_id'])->where('shared_with_user_id', $data['requested_by_user_id'])->exists();
+
+        if ($checkExist == true) {
+            return response()->json([
+                'message' => 'File shared with this user already.'
+            ], 422);
+        }
+
+        SharedFile::create([
+            'file_id' => $shareRequest->requested_file_id,
+            'shared_with_user_id' => $shareRequest->requested_by_user_id,
+            'shared_permission_id' => $shareRequest->requested_permission_id,
+        ]);
+
+        $shareRequest->delete();
+        return response()->json(['message' => 'Request has been approved.'], 200);
+    }
+
+    // Deny request sent by other users to share the file
+    public function denyRequest(Request $request)
+    {
+        $userId = Auth::id();
     }
 
     // Share file
@@ -153,11 +211,11 @@ class FileController extends Controller
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
         $file = ipfs()->get($hash);
-    
+
         return response($file)
             ->withHeaders([
                 'Content-Type' => $fileMime,
-                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
             ]);
     }
 
@@ -166,7 +224,7 @@ class FileController extends Controller
     {
         $userId = Auth::id();
         $fileExist = File::join('shared_files', 'shared_files.file_id', '=', 'files.id')
-                        ->where('shared_files.file_id', $id)->where('shared_files.shared_with_user_id', $userId)->first();
+            ->where('shared_files.file_id', $id)->where('shared_files.shared_with_user_id', $userId)->first();
 
         if (!$fileExist) {
             return response()->json([
@@ -179,11 +237,11 @@ class FileController extends Controller
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
         $file = ipfs()->get($hash);
-    
+
         return response($file)
             ->withHeaders([
                 'Content-Type' => $fileMime,
-                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
             ]);
     }
 
@@ -201,7 +259,7 @@ class FileController extends Controller
 
         $data = $request->validated();
         $existingFileExtension = pathinfo($fileRecord->file_name, PATHINFO_EXTENSION);
-        $newFileName = $data['file_name'].'.'.$existingFileExtension;
+        $newFileName = $data['file_name'] . '.' . $existingFileExtension;
         $newFileDescription = $data['file_description'];
 
         if ($newFileName === $fileRecord->file_name && $newFileDescription === $fileRecord->file_description) {
@@ -233,7 +291,7 @@ class FileController extends Controller
     {
         $userId = Auth::id();
         $fileExist = File::join('shared_files', 'shared_files.file_id', '=', 'files.id')
-                        ->where('shared_files.file_id', $id)->where('shared_files.shared_with_user_id', $userId)->first();
+            ->where('shared_files.file_id', $id)->where('shared_files.shared_with_user_id', $userId)->first();
 
         if (!$fileExist) {
             return response()->json([
@@ -244,7 +302,7 @@ class FileController extends Controller
         $fileRecord = File::where('id', $id)->first();
         $data = $request->validated();
         $existingFileExtension = pathinfo($fileRecord->file_name, PATHINFO_EXTENSION);
-        $newFileName = $data['file_name'].'.'.$existingFileExtension;
+        $newFileName = $data['file_name'] . '.' . $existingFileExtension;
         $newFileDescription = $data['file_description'];
 
         if ($newFileName === $fileRecord->file_name && $newFileDescription === $fileRecord->file_description) {
