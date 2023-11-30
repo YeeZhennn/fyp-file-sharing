@@ -14,6 +14,8 @@ use App\Models\File;
 use App\Models\SharedFile;
 use App\Models\ShareRequest;
 use App\Models\User;
+use Defuse\Crypto\Crypto;
+use Defuse\Crypto\Key;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -84,15 +86,20 @@ class FileController extends Controller
             $fileSize = $file->getSize();
             $fileMime = $file->getMimeType();
             $filePath = $file->getRealPath();
-            $fileHash = ipfs()->addFromPath($filePath);
+            $fileContent = file_get_contents($filePath);
             $userId = Auth::id();
 
+            $aesKey = Key::createNewRandomKey();
+            $encryptedFileContent = Crypto::encrypt($fileContent, $aesKey);
+            $fileHash = ipfs()->add($encryptedFileContent);
+            
             File::create([
                 'file_name' => $fileName,
                 'file_description' => $fileDescription,
                 'file_size' => $fileSize,
                 'file_mime' => $fileMime,
                 'ipfs_cid' => $fileHash,
+                'encrypted_aes_key' => $aesKey->saveToAsciiSafeString(),
                 'uploaded_by_user_id' => $userId,
             ]);
 
@@ -238,9 +245,11 @@ class FileController extends Controller
         $fileName = $fileRecord->file_name;
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
-        $file = ipfs()->get($hash);
+        $encryptedFileContent = ipfs()->get($hash);
+        $aesKey = Key::loadFromAsciiSafeString($fileRecord->encrypted_aes_key);
+        $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
     
-        return response($file)
+        return response($fileContent)
             ->withHeaders([
                 'Content-Type' => $fileMime,
                 'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
@@ -264,9 +273,11 @@ class FileController extends Controller
         $fileName = $fileRecord->file_name;
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
-        $file = ipfs()->get($hash);
+        $encryptedFileContent = ipfs()->get($hash);
+        $aesKey = Key::loadFromAsciiSafeString($fileRecord->encrypted_aes_key);
+        $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
     
-        return response($file)
+        return response($fileContent)
             ->withHeaders([
                 'Content-Type' => $fileMime,
                 'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
