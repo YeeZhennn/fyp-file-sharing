@@ -22,10 +22,6 @@ export default function DefaultLayout() {
     const [open, setOpen] = useState(true);
     const {token, setUser, setToken, notification} = useStateContext();
 
-    if (!token) {
-        return <Navigate to="/login" />
-    }
-
     useEffect(() => {
         const currentPath = window.location.pathname;
         let selected;
@@ -48,6 +44,10 @@ export default function DefaultLayout() {
 
         setSelectedIndex(selected);
     }, [window.location.pathname])
+
+    if (!token) {
+        return <Navigate to="/login" />
+    }
 
     const handleListItemClick = (ev, index) => {
         setSelectedIndex(index);
