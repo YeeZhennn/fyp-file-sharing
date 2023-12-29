@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('files', function (Blueprint $table) {
-            $table->string('encrypted_aes_key')->after('ipfs_cid')->notNull();
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('private_key')->after('role_id')->notNull();
+            $table->string('public_key')->after('role_id')->notNull();
         });
     }
 
@@ -21,8 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('files', function (Blueprint $table) {
-            $table->dropColumn('encrypted_aes_key');
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('private_key');
+            $table->dropColumn('public_key');
         });
     }
 };

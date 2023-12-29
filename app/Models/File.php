@@ -33,6 +33,7 @@ class File extends Model
         'file_mime',
         'ipfs_cid',
         'encrypted_aes_key',
+        'capsule',
         'uploaded_by_user_id',
     ];
 

@@ -18,6 +18,7 @@ use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 class FileController extends Controller
 {
@@ -90,22 +91,42 @@ class FileController extends Controller
             $userId = Auth::id();
 
             $aesKey = Key::createNewRandomKey();
+            $aesKeyInAscii = $aesKey->saveToAsciiSafeString();
             $encryptedFileContent = Crypto::encrypt($fileContent, $aesKey);
             $fileHash = ipfs()->add($encryptedFileContent);
-            
-            File::create([
-                'file_name' => $fileName,
-                'file_description' => $fileDescription,
-                'file_size' => $fileSize,
-                'file_mime' => $fileMime,
-                'ipfs_cid' => $fileHash,
-                'encrypted_aes_key' => $aesKey->saveToAsciiSafeString(),
-                'uploaded_by_user_id' => $userId,
-            ]);
 
-            return response()->json([
-                'message' => 'File uploaded successfully.'
-            ], 201);
+            $user = User::where('id', $userId)->first();
+            $pubKey = $user->public_key;
+
+            $url = 'http://localhost:10000/encrypt';
+            $goRequest = [
+                'aesKey' => $aesKeyInAscii,
+                'pubKey' => $pubKey,
+            ];
+            $goResponse = Http::post($url, $goRequest);
+
+            if ($goResponse->successful()) {
+                $goData = $goResponse->json();
+                
+                File::create([
+                    'file_name' => $fileName,
+                    'file_description' => $fileDescription,
+                    'file_size' => $fileSize,
+                    'file_mime' => $fileMime,
+                    'ipfs_cid' => $fileHash,
+                    'encrypted_aes_key' => $goData['cipher'],
+                    'capsule' => $goData['capsule'],
+                    'uploaded_by_user_id' => $userId,
+                ]);
+    
+                return response()->json([
+                    'message' => 'File uploaded successfully.'
+                ], 201);
+            } else {
+                return response()->json([
+                    'message' => 'Failed to fetch data from Golang.'
+                ], 500);
+            }
         }
     }
 
@@ -145,17 +166,41 @@ class FileController extends Controller
             ], 422);
         }
 
-        SharedFile::create([
-            'file_id' => $shareRequest->requested_file_id,
-            'shared_with_user_id' => $shareRequest->requested_by_user_id,
-            'shared_permission_id' => $shareRequest->requested_permission_id,
-        ]);
+        $userId = Auth::id();
+        $owner = User::where('id', $userId)->first();
+        $recipient = User::where('id', $shareRequest->requested_by_user_id)->first();
+        $fileRecord = File::where('id', $shareRequest->requested_file_id)->first();
 
-        $shareRequest->delete();
+        $url = 'http://localhost:10000/recrypt';
+        $goRequest = [
+            'ownerPriKey' => $owner->private_key,
+            'ownerPubKey' => $owner->public_key,
+            'recipientPubKey' => $recipient->public_key,
+            'capsule' => $fileRecord->capsule,
+        ];
+        $goResponse = Http::post($url, $goRequest);
 
-        return response()->json([
-            'message' => 'Request has been approved.'
-        ], 201);
+        if ($goResponse->successful()) {
+            $goData = $goResponse->json();
+
+            SharedFile::create([
+                'file_id' => $shareRequest->requested_file_id,
+                'shared_with_user_id' => $shareRequest->requested_by_user_id,
+                'shared_permission_id' => $shareRequest->requested_permission_id,
+                'recrypt_pub' => $goData['pubX'],
+                'recrypt_capsule' => $goData['newCapsule'],
+            ]);
+    
+            $shareRequest->delete();
+    
+            return response()->json([
+                'message' => 'Request has been approved.'
+            ], 201);
+        } else {
+            return response()->json([
+                'message' => 'Failed to fetch data from Golang.'
+            ], 500);
+        }
     }
 
     // Share file
@@ -182,15 +227,37 @@ class FileController extends Controller
             ], 422);
         }
 
-        SharedFile::create([
-            'file_id' => $fileId,
-            'shared_with_user_id' => $sharedWithUserId,
-            'shared_permission_id' => $data['permission_id'],
-        ]);
+        $owner = User::where('id', $userId)->first();
+        $recipient = User::where('id', $sharedWithUserId)->first();
 
-        return response()->json([
-            'message' => 'File shared successfully.'
-        ], 201);
+        $url = 'http://localhost:10000/recrypt';
+        $goRequest = [
+            'ownerPriKey' => $owner->private_key,
+            'ownerPubKey' => $owner->public_key,
+            'recipientPubKey' => $recipient->public_key,
+            'capsule' => $fileRecord->capsule,
+        ];
+        $goResponse = Http::post($url, $goRequest);
+
+        if ($goResponse->successful()) {
+            $goData = $goResponse->json();
+            
+            SharedFile::create([
+                'file_id' => $fileId,
+                'shared_with_user_id' => $sharedWithUserId,
+                'shared_permission_id' => $data['permission_id'],
+                'recrypt_pub' => $goData['pubX'],
+                'recrypt_capsule' => $goData['newCapsule'],
+            ]);
+    
+            return response()->json([
+                'message' => 'File shared successfully.'
+            ], 201);
+        } else {
+            return response()->json([
+                'message' => 'Failed to fetch data from Golang.'
+            ], 500);
+        }
     }
 
     // Update user access to file
@@ -246,14 +313,34 @@ class FileController extends Controller
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
         $encryptedFileContent = ipfs()->get($hash);
-        $aesKey = Key::loadFromAsciiSafeString($fileRecord->encrypted_aes_key);
-        $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
-    
-        return response($fileContent)
-            ->withHeaders([
-                'Content-Type' => $fileMime,
-                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
-            ]);
+
+        $user = User::where('id', $userId)->first();
+
+        $url = 'http://localhost:10000/decryptAtMyFiles';
+        $goRequest = [
+            'priKey' => $user->private_key,
+            'pubKey' => $user->public_key,
+            'aesKeyCipher' => $fileRecord->encrypted_aes_key,
+            'capsule' => $fileRecord->capsule,
+        ];
+        $goResponse = Http::post($url, $goRequest);
+
+        if ($goResponse->successful()) {
+            $goData = $goResponse->json();
+            
+            $aesKey = Key::loadFromAsciiSafeString($goData['plaintext']);
+            $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
+        
+            return response($fileContent)
+                ->withHeaders([
+                    'Content-Type' => $fileMime,
+                    'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+                ]);
+        } else {
+            return response()->json([
+                'message' => 'Failed to fetch data from Golang.'
+            ], 500);
+        }
     }
 
     // Download file shared to user
@@ -274,14 +361,36 @@ class FileController extends Controller
         $fileMime = $fileRecord->file_mime;
         $hash = $fileRecord->ipfs_cid;
         $encryptedFileContent = ipfs()->get($hash);
-        $aesKey = Key::loadFromAsciiSafeString($fileRecord->encrypted_aes_key);
-        $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
-    
-        return response($fileContent)
-            ->withHeaders([
-                'Content-Type' => $fileMime,
-                'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
-            ]);
+
+        $user = User::where('id', $userId)->first();
+        $sharedFileRecord = SharedFile::where('file_id', $id)->where('shared_with_user_id', $userId)->first();
+
+        $url = 'http://localhost:10000/decryptAtSharedFiles';
+        $goRequest = [
+            'priKey' => $user->private_key,
+            'pubKey' => $user->public_key,
+            'aesKeyCipher' => $fileRecord->encrypted_aes_key,
+            'recryptPubX' => $sharedFileRecord->recrypt_pub,
+            'recryptCapsule' => $sharedFileRecord->recrypt_capsule,
+        ];
+        $goResponse = Http::post($url, $goRequest);
+
+        if ($goResponse->successful()) {
+            $goData = $goResponse->json();
+
+            $aesKey = Key::loadFromAsciiSafeString($goData['plaintext']);
+            $fileContent = Crypto::decrypt($encryptedFileContent, $aesKey);
+        
+            return response($fileContent)
+                ->withHeaders([
+                    'Content-Type' => $fileMime,
+                    'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+                ]);
+        } else {
+            return response()->json([
+                'message' => 'Failed to fetch data from Golang.'
+            ], 500);
+        }
     }
 
     // Edit file metadata uploaded by user
