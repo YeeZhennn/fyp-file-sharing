@@ -48,6 +48,32 @@ func main() {
 	http.ListenAndServe(":10000", nil)
 }
 
+func deserializePubKey(pubKeyBytes []byte) (*ecdsa.PublicKey, error) {
+	curve := elliptic.P256()
+	x, y := elliptic.Unmarshal(curve, pubKeyBytes)
+	if x == nil || y == nil {
+		return nil, fmt.Errorf("Failed to unmarshal the public key.")
+	}
+
+	pubKey := &ecdsa.PublicKey{
+		Curve: curve,
+		X:     x,
+		Y:     y,
+	}
+
+	return pubKey, nil
+}
+
+func decodeToBytes(s string, w http.ResponseWriter) ([]byte, bool) {
+	decodedData, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+		return nil, false
+	}
+
+	return decodedData, true
+}
+
 func handleGenerateKeys(w http.ResponseWriter, r *http.Request) {
 	priKey, pubKey, _ := curve.GenerateKeys()
 	pubKeyBytes := elliptic.Marshal(pubKey.Curve, pubKey.X, pubKey.Y)
@@ -68,6 +94,7 @@ func handleGenerateKeys(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
 
+	fmt.Println("-----Key Generation-----")
 	fmt.Println("Deserialized Public Key:", pubKey)
 	fmt.Println("Public Key (byte[]):", pubKeyBytes)
 	fmt.Println("Deserialized Private Key:", priKey)
@@ -84,24 +111,17 @@ func handleEncrypt(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Public Key (base64):", requestData.PubKey)
 
-	decodedPubKey, err := base64.StdEncoding.DecodeString(requestData.PubKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedPubKey, ok := decodeToBytes(requestData.PubKey, w)
+	if !ok {
 		return
 	}
 
 	fmt.Println("Public Key (byte[]):", decodedPubKey)
 
-	curve := elliptic.P256()
-	x, y := elliptic.Unmarshal(curve, decodedPubKey)
-	if x == nil || y == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	pubKey, err := deserializePubKey(decodedPubKey)
+	if err != nil {
+		fmt.Println(err)
 		return
-	}
-	pubKey := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     x,
-		Y:     y,
 	}
 
 	fmt.Println("Deserialized Public Key:", pubKey)
@@ -151,24 +171,20 @@ func handleRecrypt(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Recipient Public Key (base64):", requestData.RecipientPubKey)
 	fmt.Println("Capsule (base64):", requestData.Capsule)
 
-	decodedOwnerPriKey, err := base64.StdEncoding.DecodeString(requestData.OwnerPriKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedOwnerPriKey, ok := decodeToBytes(requestData.OwnerPriKey, w)
+	if !ok {
 		return
 	}
-	decodedOwnerPubKey, err := base64.StdEncoding.DecodeString(requestData.OwnerPubKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedOwnerPubKey, ok := decodeToBytes(requestData.OwnerPubKey, w)
+	if !ok {
 		return
 	}
-	decodedRecipientPubKey, err := base64.StdEncoding.DecodeString(requestData.RecipientPubKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedRecipientPubKey, ok := decodeToBytes(requestData.RecipientPubKey, w)
+	if !ok {
 		return
 	}
-	decodedCapsule, err := base64.StdEncoding.DecodeString(requestData.Capsule)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedCapsule, ok := decodeToBytes(requestData.Capsule, w)
+	if !ok {
 		return
 	}
 
@@ -177,39 +193,25 @@ func handleRecrypt(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Recipient Public Key (byte[]):", decodedRecipientPubKey)
 	fmt.Println("Capsule (byte[]):", decodedCapsule)
 
-	curve := elliptic.P256()
-	x, y := elliptic.Unmarshal(curve, decodedOwnerPubKey)
-	if x == nil || y == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	ownerPubKey, err := deserializePubKey(decodedOwnerPubKey)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	ownerPubKey := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     x,
-		Y:     y,
-	}
-
-	fmt.Println("Deserialized Owner Public Key:", ownerPubKey)
 
 	ownerPriKey := &ecdsa.PrivateKey{
 		PublicKey: *ownerPubKey,
 		D:         new(big.Int).SetBytes(decodedOwnerPriKey),
 	}
 
-	fmt.Println("Deserialized Owner Private Key:", ownerPriKey)
-
-	curve2 := elliptic.P256()
-	x2, y2 := elliptic.Unmarshal(curve2, decodedRecipientPubKey)
-	if x2 == nil || y2 == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	recipientPubKey, err := deserializePubKey(decodedRecipientPubKey)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	recipientPubKey := &ecdsa.PublicKey{
-		Curve: curve2,
-		X:     x2,
-		Y:     y2,
-	}
 
+	fmt.Println("Deserialized Owner Public Key:", ownerPubKey)
+	fmt.Println("Deserialized Owner Private Key:", ownerPriKey)
 	fmt.Println("Deserialized Recipient Public Key:", recipientPubKey)
 
 	capsule, err := recrypt.DecodeCapsule(decodedCapsule)
@@ -270,24 +272,20 @@ func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Ciphertext (base64):", requestData.AESKeyCipher)
 	fmt.Println("Capsule (base64):", requestData.Capsule)
 
-	decodedPriKey, err := base64.StdEncoding.DecodeString(requestData.PriKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedPriKey, ok := decodeToBytes(requestData.PriKey, w)
+	if !ok {
 		return
 	}
-	decodedPubKey, err := base64.StdEncoding.DecodeString(requestData.PubKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedPubKey, ok := decodeToBytes(requestData.PubKey, w)
+	if !ok {
 		return
 	}
-	decodedAESKeyCipher, err := base64.StdEncoding.DecodeString(requestData.AESKeyCipher)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedAESKeyCipher, ok := decodeToBytes(requestData.AESKeyCipher, w)
+	if !ok {
 		return
 	}
-	decodedCapsule, err := base64.StdEncoding.DecodeString(requestData.Capsule)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedCapsule, ok := decodeToBytes(requestData.Capsule, w)
+	if !ok {
 		return
 	}
 
@@ -296,25 +294,18 @@ func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Ciphertext (byte[]):", decodedAESKeyCipher)
 	fmt.Println("Capsule (byte[]):", decodedCapsule)
 
-	curve := elliptic.P256()
-	x, y := elliptic.Unmarshal(curve, decodedPubKey)
-	if x == nil || y == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	pubKey, err := deserializePubKey(decodedPubKey)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	pubKey := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     x,
-		Y:     y,
-	}
-
-	fmt.Println("Deserialized Public Key:", pubKey)
 
 	priKey := &ecdsa.PrivateKey{
 		PublicKey: *pubKey,
 		D:         new(big.Int).SetBytes(decodedPriKey),
 	}
 
+	fmt.Println("Deserialized Public Key:", pubKey)
 	fmt.Println("Deserialized Private Key:", priKey)
 
 	capsule, err := recrypt.DecodeCapsule(decodedCapsule)
@@ -359,29 +350,24 @@ func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Recrypt PubX (base64):", requestData.RecryptPubX)
 	fmt.Println("Recrypt Capsule (base64):", requestData.RecryptCapsule)
 
-	decodedPriKey, err := base64.StdEncoding.DecodeString(requestData.PriKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedPriKey, ok := decodeToBytes(requestData.PriKey, w)
+	if !ok {
 		return
 	}
-	decodedPubKey, err := base64.StdEncoding.DecodeString(requestData.PubKey)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedPubKey, ok := decodeToBytes(requestData.PubKey, w)
+	if !ok {
 		return
 	}
-	decodedAESKeyCipher, err := base64.StdEncoding.DecodeString(requestData.AESKeyCipher)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedAESKeyCipher, ok := decodeToBytes(requestData.AESKeyCipher, w)
+	if !ok {
 		return
 	}
-	decodedRecryptPubX, err := base64.StdEncoding.DecodeString(requestData.RecryptPubX)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedRecryptPubX, ok := decodeToBytes(requestData.RecryptPubX, w)
+	if !ok {
 		return
 	}
-	decodedRecryptCapsule, err := base64.StdEncoding.DecodeString(requestData.RecryptCapsule)
-	if err != nil {
-		http.Error(w, "Failed to decode data", http.StatusBadRequest)
+	decodedRecryptCapsule, ok := decodeToBytes(requestData.RecryptCapsule, w)
+	if !ok {
 		return
 	}
 
@@ -391,39 +377,25 @@ func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Recrypt PubX (byte[]):", decodedRecryptPubX)
 	fmt.Println("Recrypt Capsule (byte[]):", decodedRecryptCapsule)
 
-	curve := elliptic.P256()
-	x, y := elliptic.Unmarshal(curve, decodedPubKey)
-	if x == nil || y == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	pubKey, err := deserializePubKey(decodedPubKey)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	pubKey := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     x,
-		Y:     y,
-	}
-
-	fmt.Println("Deserialized Public Key:", pubKey)
 
 	priKey := &ecdsa.PrivateKey{
 		PublicKey: *pubKey,
 		D:         new(big.Int).SetBytes(decodedPriKey),
 	}
 
-	fmt.Println("Deserialized Private Key:", priKey)
-
-	curve2 := elliptic.P256()
-	x2, y2 := elliptic.Unmarshal(curve2, decodedRecryptPubX)
-	if x2 == nil || y2 == nil {
-		fmt.Println("Failed to unmarshal the public key.")
+	pubX, err := deserializePubKey(decodedRecryptPubX)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	pubX := &ecdsa.PublicKey{
-		Curve: curve2,
-		X:     x2,
-		Y:     y2,
-	}
 
+	fmt.Println("Deserialized Public Key:", pubKey)
+	fmt.Println("Deserialized Private Key:", priKey)
 	fmt.Println("Deserialized Recrypt PubX:", pubX)
 
 	recryptCapsule, err := recrypt.DecodeCapsule(decodedRecryptCapsule)
