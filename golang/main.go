@@ -94,11 +94,9 @@ func handleGenerateKeys(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
 
-	fmt.Println("-----Key Generation-----")
-	fmt.Println("Deserialized Public Key:", pubKey)
-	fmt.Println("Public Key (byte[]):", pubKeyBytes)
-	fmt.Println("Deserialized Private Key:", priKey)
-	fmt.Println("Private Key (byte[]):", priKeyBytes)
+	fmt.Println("\n-----Key Generation-----")
+	fmt.Println("Public Key:", pubKey)
+	fmt.Println("Private Key:", priKey)
 }
 
 func handleEncrypt(w http.ResponseWriter, r *http.Request) {
@@ -109,14 +107,10 @@ func handleEncrypt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Public Key (base64):", requestData.PubKey)
-
 	decodedPubKey, ok := decodeToBytes(requestData.PubKey, w)
 	if !ok {
 		return
 	}
-
-	fmt.Println("Public Key (byte[]):", decodedPubKey)
 
 	pubKey, err := deserializePubKey(decodedPubKey)
 	if err != nil {
@@ -124,11 +118,8 @@ func handleEncrypt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Deserialized Public Key:", pubKey)
-
 	plainAESKey := requestData.AESKey
-	fmt.Println("plaintext:", plainAESKey)
-
+	
 	cipherText, capsule, err := recrypt.Encrypt(plainAESKey, pubKey)
 	if err != nil {
 		fmt.Println(err)
@@ -137,10 +128,6 @@ func handleEncrypt(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("encode error:", err)
 	}
-
-	fmt.Println("capsule before encode:", capsule)
-	fmt.Println("capsule after encode:", capsuleAsBytes)
-	fmt.Println("ciphertext:", cipherText)
 
 	response := map[string]interface{}{
 		"cipher": cipherText,
@@ -156,6 +143,12 @@ func handleEncrypt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
+
+	fmt.Println("\n-----Encryption-----")
+	fmt.Println("Public Key:", pubKey)
+	fmt.Println("Plaintext:", plainAESKey)
+	fmt.Println("Capsule:", capsule)
+	fmt.Println("Ciphertext:", cipherText)
 }
 
 func handleRecrypt(w http.ResponseWriter, r *http.Request) {
@@ -165,11 +158,6 @@ func handleRecrypt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("Owner Private Key (base64):", requestData.OwnerPriKey)
-	fmt.Println("Owner Public Key (base64):", requestData.OwnerPubKey)
-	fmt.Println("Recipient Public Key (base64):", requestData.RecipientPubKey)
-	fmt.Println("Capsule (base64):", requestData.Capsule)
 
 	decodedOwnerPriKey, ok := decodeToBytes(requestData.OwnerPriKey, w)
 	if !ok {
@@ -188,64 +176,43 @@ func handleRecrypt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Owner Private Key (byte[]):", decodedOwnerPriKey)
-	fmt.Println("Owner Public Key (byte[]):", decodedOwnerPubKey)
-	fmt.Println("Recipient Public Key (byte[]):", decodedRecipientPubKey)
-	fmt.Println("Capsule (byte[]):", decodedCapsule)
-
 	ownerPubKey, err := deserializePubKey(decodedOwnerPubKey)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	ownerPriKey := &ecdsa.PrivateKey{
 		PublicKey: *ownerPubKey,
 		D:         new(big.Int).SetBytes(decodedOwnerPriKey),
 	}
-
 	recipientPubKey, err := deserializePubKey(decodedRecipientPubKey)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	fmt.Println("Deserialized Owner Public Key:", ownerPubKey)
-	fmt.Println("Deserialized Owner Private Key:", ownerPriKey)
-	fmt.Println("Deserialized Recipient Public Key:", recipientPubKey)
-
 	capsule, err := recrypt.DecodeCapsule(decodedCapsule)
 	if err != nil {
 		fmt.Println("decode error:", err)
 	}
 
-	fmt.Println("Deserialized Capsule:", capsule)
-
 	rk, pubX, err := recrypt.ReKeyGen(ownerPriKey, recipientPubKey)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("rk:", rk)
-	fmt.Println("pubX:", pubX)
-	
-	newCapsule, err := recrypt.ReEncryption(rk, &capsule)
+	recryptCapsule, err := recrypt.ReEncryption(rk, &capsule)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	fmt.Println("newCapsule:", newCapsule)
-
+	
 	pubXBytes := elliptic.Marshal(pubX.Curve, pubX.X, pubX.Y)
-	newCapsuleAsBytes, err := recrypt.EncodeCapsule(*newCapsule)
+	recryptCapsuleAsBytes, err := recrypt.EncodeCapsule(*recryptCapsule)
 	if err != nil {
 		fmt.Println("encode error:", err)
 	}
 
-	fmt.Println("pubX in bytes:", pubXBytes)
-	fmt.Println("new capsule after encode:", newCapsuleAsBytes)
-
 	response := map[string]interface{}{
 		"pubX": pubXBytes,
-		"newCapsule": newCapsuleAsBytes,
+		"recryptCapsule": recryptCapsuleAsBytes,
 	}
 
 	jsonResponse, err := json.Marshal(response)
@@ -257,6 +224,15 @@ func handleRecrypt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
+
+	fmt.Println("\n-----Re-Encryption-----")
+	fmt.Println("Owner Public Key:", ownerPubKey)
+	fmt.Println("Owner Private Key:", ownerPriKey)
+	fmt.Println("Recipient Public Key:", recipientPubKey)
+	fmt.Println("Capsule:", capsule)
+	fmt.Println("Re-Encryption Key:", rk)
+	fmt.Println("Recrypt pubX:", pubX)
+	fmt.Println("Recrypt Capsule:", recryptCapsule)
 }
 
 func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
@@ -266,11 +242,6 @@ func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("Private Key (base64):", requestData.PriKey)
-	fmt.Println("Public Key (base64):", requestData.PubKey)
-	fmt.Println("Ciphertext (base64):", requestData.AESKeyCipher)
-	fmt.Println("Capsule (base64):", requestData.Capsule)
 
 	decodedPriKey, ok := decodeToBytes(requestData.PriKey, w)
 	if !ok {
@@ -289,38 +260,25 @@ func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Private Key (byte[]):", decodedPriKey)
-	fmt.Println("Public Key (byte[]):", decodedPubKey)
-	fmt.Println("Ciphertext (byte[]):", decodedAESKeyCipher)
-	fmt.Println("Capsule (byte[]):", decodedCapsule)
-
 	pubKey, err := deserializePubKey(decodedPubKey)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	priKey := &ecdsa.PrivateKey{
 		PublicKey: *pubKey,
 		D:         new(big.Int).SetBytes(decodedPriKey),
 	}
-
-	fmt.Println("Deserialized Public Key:", pubKey)
-	fmt.Println("Deserialized Private Key:", priKey)
-
 	capsule, err := recrypt.DecodeCapsule(decodedCapsule)
 	if err != nil {
 		fmt.Println("decode error:", err)
 	}
 
-	fmt.Println("Deserialized Capsule:", capsule)
-
 	plainAESKey, err := recrypt.DecryptOnMyPriKey(priKey, &capsule, decodedAESKeyCipher)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("PlainText:", string(plainAESKey))
-
+	
 	response := map[string]interface{}{
 		"plaintext": string(plainAESKey),
 	}
@@ -334,6 +292,13 @@ func handleDecryptAtMyFiles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
+
+	fmt.Println("\n-----Decryption (My Files)-----")
+	fmt.Println("Public Key:", pubKey)
+	fmt.Println("Private Key:", priKey)
+	fmt.Println("Capsule:", capsule)
+	fmt.Println("Ciphertext:", decodedAESKeyCipher)
+	fmt.Println("Plaintext:", string(plainAESKey))
 }
 
 func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
@@ -343,12 +308,6 @@ func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
-	fmt.Println("Private Key (base64):", requestData.PriKey)
-	fmt.Println("Public Key (base64):", requestData.PubKey)
-	fmt.Println("Ciphertext (base64):", requestData.AESKeyCipher)
-	fmt.Println("Recrypt PubX (base64):", requestData.RecryptPubX)
-	fmt.Println("Recrypt Capsule (base64):", requestData.RecryptCapsule)
 
 	decodedPriKey, ok := decodeToBytes(requestData.PriKey, w)
 	if !ok {
@@ -371,45 +330,29 @@ func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Private Key (byte[]):", decodedPriKey)
-	fmt.Println("Public Key (byte[]):", decodedPubKey)
-	fmt.Println("Ciphertext (byte[]):", decodedAESKeyCipher)
-	fmt.Println("Recrypt PubX (byte[]):", decodedRecryptPubX)
-	fmt.Println("Recrypt Capsule (byte[]):", decodedRecryptCapsule)
-
 	pubKey, err := deserializePubKey(decodedPubKey)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	priKey := &ecdsa.PrivateKey{
 		PublicKey: *pubKey,
 		D:         new(big.Int).SetBytes(decodedPriKey),
 	}
-
 	pubX, err := deserializePubKey(decodedRecryptPubX)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	fmt.Println("Deserialized Public Key:", pubKey)
-	fmt.Println("Deserialized Private Key:", priKey)
-	fmt.Println("Deserialized Recrypt PubX:", pubX)
-
 	recryptCapsule, err := recrypt.DecodeCapsule(decodedRecryptCapsule)
 	if err != nil {
 		fmt.Println("decode error:", err)
 	}
 
-	fmt.Println("Deserialized Recrypt Capsule:", recryptCapsule)
-
 	plainAESKey, err := recrypt.Decrypt(priKey, &recryptCapsule, pubX, decodedAESKeyCipher)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("PlainText:", string(plainAESKey))
 
 	response := map[string]interface{}{
 		"plaintext": string(plainAESKey),
@@ -424,4 +367,12 @@ func handleDecryptAtSharedFiles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResponse)
+
+	fmt.Println("\n-----Decryption (Shared Files)-----")
+	fmt.Println("Public Key:", pubKey)
+	fmt.Println("Private Key:", priKey)
+	fmt.Println("Recrypt PubX:", pubX)
+	fmt.Println("Recrypt Capsule:", recryptCapsule)
+	fmt.Println("Ciphertext:", decodedAESKeyCipher)
+	fmt.Println("Plaintext:", string(plainAESKey))
 }

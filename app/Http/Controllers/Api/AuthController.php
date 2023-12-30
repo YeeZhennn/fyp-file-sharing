@@ -16,7 +16,10 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        $url = 'http://localhost:10000/generateKeys';
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
+
+        $url = "http://{$goHost}:{$goPort}/generateKeys";
         $goResponse = Http::get($url);
 
         if ($goResponse->successful()) {

@@ -95,10 +95,12 @@ class FileController extends Controller
             $encryptedFileContent = Crypto::encrypt($fileContent, $aesKey);
             $fileHash = ipfs()->add($encryptedFileContent);
 
+            $goHost = env('GO_HOST');
+            $goPort = env('GO_PORT');
             $user = User::where('id', $userId)->first();
             $pubKey = $user->public_key;
 
-            $url = 'http://localhost:10000/encrypt';
+            $url = "http://{$goHost}:{$goPort}/encrypt";
             $goRequest = [
                 'aesKey' => $aesKeyInAscii,
                 'pubKey' => $pubKey,
@@ -166,12 +168,14 @@ class FileController extends Controller
             ], 422);
         }
 
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
         $userId = Auth::id();
         $owner = User::where('id', $userId)->first();
         $recipient = User::where('id', $shareRequest->requested_by_user_id)->first();
         $fileRecord = File::where('id', $shareRequest->requested_file_id)->first();
 
-        $url = 'http://localhost:10000/recrypt';
+        $url = "http://{$goHost}:{$goPort}/recrypt";
         $goRequest = [
             'ownerPriKey' => $owner->private_key,
             'ownerPubKey' => $owner->public_key,
@@ -188,7 +192,7 @@ class FileController extends Controller
                 'shared_with_user_id' => $shareRequest->requested_by_user_id,
                 'shared_permission_id' => $shareRequest->requested_permission_id,
                 'recrypt_pub' => $goData['pubX'],
-                'recrypt_capsule' => $goData['newCapsule'],
+                'recrypt_capsule' => $goData['recryptCapsule'],
             ]);
     
             $shareRequest->delete();
@@ -227,10 +231,12 @@ class FileController extends Controller
             ], 422);
         }
 
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
         $owner = User::where('id', $userId)->first();
         $recipient = User::where('id', $sharedWithUserId)->first();
 
-        $url = 'http://localhost:10000/recrypt';
+        $url = "http://{$goHost}:{$goPort}/recrypt";
         $goRequest = [
             'ownerPriKey' => $owner->private_key,
             'ownerPubKey' => $owner->public_key,
@@ -247,7 +253,7 @@ class FileController extends Controller
                 'shared_with_user_id' => $sharedWithUserId,
                 'shared_permission_id' => $data['permission_id'],
                 'recrypt_pub' => $goData['pubX'],
-                'recrypt_capsule' => $goData['newCapsule'],
+                'recrypt_capsule' => $goData['recryptCapsule'],
             ]);
     
             return response()->json([
@@ -314,9 +320,11 @@ class FileController extends Controller
         $hash = $fileRecord->ipfs_cid;
         $encryptedFileContent = ipfs()->get($hash);
 
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
         $user = User::where('id', $userId)->first();
 
-        $url = 'http://localhost:10000/decryptAtMyFiles';
+        $url = "http://{$goHost}:{$goPort}/decryptAtMyFiles";
         $goRequest = [
             'priKey' => $user->private_key,
             'pubKey' => $user->public_key,
@@ -362,10 +370,12 @@ class FileController extends Controller
         $hash = $fileRecord->ipfs_cid;
         $encryptedFileContent = ipfs()->get($hash);
 
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
         $user = User::where('id', $userId)->first();
         $sharedFileRecord = SharedFile::where('file_id', $id)->where('shared_with_user_id', $userId)->first();
 
-        $url = 'http://localhost:10000/decryptAtSharedFiles';
+        $url = "http://{$goHost}:{$goPort}/decryptAtSharedFiles";
         $goRequest = [
             'priKey' => $user->private_key,
             'pubKey' => $user->public_key,
