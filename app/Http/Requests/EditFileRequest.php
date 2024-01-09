@@ -26,4 +26,12 @@ class EditFileRequest extends FormRequest
             'file_description' => 'required|string|max:200'
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'file_name.required' => 'Please input the file name.',
+            'file_description.required' => 'Please input the file description.',
+        ];
+    }
 }

@@ -112,7 +112,14 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
             .catch((err) => {
                 const response = err.response;
                 if (response && (response.status == 404 || response.status == 422)) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setErrors(response.data.errors);
+                    }
+                    else {
+                        setErrors({
+                            user: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
                         setErrors('');
                     }, 6000);
@@ -150,7 +157,9 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
             </DialogTitle>
             <DialogContent dividers>
                 {errors && <Alert severity="error" sx={{ alignItems: 'center', }}>
-                    {errors}
+                    {Object.keys(errors).map(key => (
+                        <p key={key} style={{ margin: '5px' }}>{errors[key][0]}</p>
+                    ))}
                 </Alert>
                 }
                 <Grid sx={{ mb: 2, }}>

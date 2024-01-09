@@ -61,6 +61,20 @@ class FileController extends Controller
         return response()->json($allFiles);
     }
 
+    // Display all files requested by user
+    public function showRequestedFiles()
+    {
+        $userId = Auth::id();
+        $requestedFiles = ShareRequest::join('permissions', 'permissions.id', '=', 'share_requests.requested_permission_id')
+            ->join('files', 'files.id', '=', 'share_requests.requested_file_id')
+            ->join('users', 'users.id', '=', 'files.uploaded_by_user_id')
+            ->select('share_requests.*', 'files.file_name', 'files.file_description', 'users.name', 'permissions.permission_name')
+            ->where('share_requests.requested_by_user_id', $userId)
+            ->orderByDesc('share_requests.created_at')
+            ->get();
+        return response()->json($requestedFiles);
+    }
+
     // Display all requests from other users to share the file
     public function showShareRequests()
     {
@@ -255,6 +269,12 @@ class FileController extends Controller
                 'recrypt_pub' => $goData['pubX'],
                 'recrypt_capsule' => $goData['recryptCapsule'],
             ]);
+
+            $shareRequest = ShareRequest::where('requested_file_id', $fileId)->where('requested_by_user_id', $sharedWithUserId)->first();
+
+            if ($shareRequest) {
+                $shareRequest->delete();
+            }
     
             return response()->json([
                 'message' => 'File shared successfully.'

@@ -38,8 +38,10 @@ class StoreFileRequest extends FormRequest
     public function messages()
     {
         return [
+            'file.file' => 'Please select a file to upload.',
             'file.mimes' => 'File type is not accepted. Accepted file extensions: doc, docx, xls, xlsx, ppt, pptx, csv, pdf, txt, jpeg, jpg, png, svg, zip, rar.',
             'file.max' => 'File size must not exceed 10 MB.',
+            'file_description.required' => 'Please input the file description.',
         ];
     }
 }

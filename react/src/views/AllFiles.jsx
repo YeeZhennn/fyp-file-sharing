@@ -19,6 +19,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 export default function AllFiles() {
     const [errors, setErrors] = useState(null);
     const [files, setFiles] = useState([]);
+    const [requestedFiles, setRequestedFiles] = useState([]);
     const [permissionOptions, setPermissionOptions] = useState([]);
     const [selectedFileId, setSelectedFileId] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -26,6 +27,7 @@ export default function AllFiles() {
 
     useEffect(() => {
         getAllFiles();
+        getAllRequestedFiles();
         getSharePermissions();
     }, [])
 
@@ -33,6 +35,16 @@ export default function AllFiles() {
         axiosClient.get('/allfiles')
             .then(({ data }) => {
                 setFiles(data);
+            })
+            .catch((err) => {
+                console.error('Error fetching file data:', err);
+            })
+    }
+
+    const getAllRequestedFiles = () => {
+        axiosClient.get('/requestedfiles')
+            .then(({ data }) => {
+                setRequestedFiles(data);
             })
             .catch((err) => {
                 console.error('Error fetching file data:', err);
@@ -72,6 +84,7 @@ export default function AllFiles() {
                     handleClose();
                     setNotification(response.data.message);
                     getAllFiles();
+                    getAllRequestedFiles();
                 }
             })
             .catch((err) => {
@@ -132,6 +145,37 @@ export default function AllFiles() {
                                     </MenuItem>
                                 ))}
                             </Menu>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
+            <Grid sx={{ mb: 2, display: 'flex', }}>
+                <Typography variant="h6" component="div" sx={{ pt: 3, pb: 0.5, flexGrow: 1, }}>
+                    Requested Files
+                </Typography>
+            </Grid>
+            <Paper elevation={4} sx={{ height: 450, }}>
+                <TableContainer sx={{ maxHeight: 450, }}>
+                    <Table stickyHeader>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ width: '30%', }}>Name</TableCell>
+                                <TableCell sx={{ width: '30%', }}>Description</TableCell>
+                                <TableCell sx={{ width: '10%', }}>Owner</TableCell>
+                                <TableCell sx={{ width: '15%', }}>Requested Permission</TableCell>
+                                <TableCell sx={{ width: '15%', }}>Requested Date</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {requestedFiles.map((file) => (
+                                <TableRow key={file.id}>
+                                    <TableCell>{file.file_name}</TableCell>
+                                    <TableCell>{file.file_description}</TableCell>
+                                    <TableCell>{file.name}</TableCell>
+                                    <TableCell>{file.permission_name}</TableCell>
+                                    <TableCell>{file.created_at}</TableCell>
+                                </TableRow>
+                            ))}
                         </TableBody>
                     </Table>
                 </TableContainer>

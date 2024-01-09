@@ -38,4 +38,12 @@ class RegisterRequest extends FormRequest
             'role_id' => 'required|exists:roles,id',
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'email.unique' => 'This email has already been registered.',
+            'password.confirmed' => 'The password fields do not match.',
+        ];
+    }
 }

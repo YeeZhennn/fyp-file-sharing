@@ -27,4 +27,11 @@ class UpdateProfileRequest extends FormRequest
             'role_id' => 'required|exists:roles,id',
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'name.required' => 'Please input the user name.',
+        ];
+    }
 }

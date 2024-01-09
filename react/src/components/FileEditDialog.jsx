@@ -61,7 +61,14 @@ export default function FileEditDialog({ isOpen, onClose, fileId, editMode }) {
             .catch((err) => {
                 const response = err.response;
                 if (response && (response.status == 404 || response.status == 422)) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setErrors(response.data.errors);
+                    }
+                    else {
+                        setErrors({
+                            file: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
                         setErrors('');
                     }, 6000);
@@ -76,7 +83,9 @@ export default function FileEditDialog({ isOpen, onClose, fileId, editMode }) {
             </DialogTitle>
             <DialogContent dividers>
                 {errors && <Alert severity="error" sx={{ alignItems: 'center', }}>
-                    {errors}
+                    {Object.keys(errors).map(key => (
+                        <p key={key} style={{ margin: '5px' }}>{errors[key][0]}</p>
+                    ))}
                 </Alert>
                 }
                 <TextField id="file_name" label="File Name" type="text" value={fileName} onChange={(ev) => setFileName(ev.target.value)} variant="filled" margin="dense" fullWidth required />
