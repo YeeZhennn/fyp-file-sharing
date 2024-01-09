@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import UpdateShareAccessDialog from '../components/UpdateShareAccessDialog.jsx';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -22,6 +23,7 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
     const userIdRef = useRef();
 
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [userOptions, setUserOptions] = useState([]);
     const [permissionOptions, setPermissionOptions] = useState([]);
     const [viewers, setViewers] = useState([]);
@@ -31,13 +33,14 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
-        if (fileId) {
+        if (isOpen && fileId) {
+            setIsLoading(true);
             getUsers();
             getSharePermissions();
             getViewers();
             getEditors();
         }
-    }, [fileId])
+    }, [isOpen, fileId])
 
     const getUsers = () => {
         axiosClient.get('/users-to-share')
@@ -73,9 +76,11 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
         axiosClient.get('/users-with-editor-access/' + fileId)
             .then(({data}) => {
                 setEditors(data);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching editors data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -148,6 +153,10 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
 
     return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import FileUploadDialog from '../components/FileUploadDialog.jsx';
 import FileShareDialog from '../components/FileShareDialog.jsx';
 import FileEditDialog from '../components/FileEditDialog.jsx';
@@ -23,6 +24,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 export default function MyFiles() {
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [files, setFiles] = useState([]);
     const [selectedFileId, setSelectedFileId] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -32,6 +34,7 @@ export default function MyFiles() {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
+        setIsLoading(true);
         getFiles();
     }, [])
 
@@ -39,9 +42,11 @@ export default function MyFiles() {
         axiosClient.get('/myfiles')
             .then(({data}) => {
                 setFiles(data);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching file data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -143,6 +148,10 @@ export default function MyFiles() {
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
 
     return (

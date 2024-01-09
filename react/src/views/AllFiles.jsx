@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
@@ -18,6 +19,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 export default function AllFiles() {
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [files, setFiles] = useState([]);
     const [requestedFiles, setRequestedFiles] = useState([]);
     const [permissionOptions, setPermissionOptions] = useState([]);
@@ -26,6 +28,7 @@ export default function AllFiles() {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
+        setIsLoading(true);
         getAllFiles();
         getAllRequestedFiles();
         getSharePermissions();
@@ -55,9 +58,11 @@ export default function AllFiles() {
         axiosClient.get('/permissions')
             .then(({data}) => {
                 setPermissionOptions(data);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching permission data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -96,6 +101,10 @@ export default function AllFiles() {
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
 
     return (
