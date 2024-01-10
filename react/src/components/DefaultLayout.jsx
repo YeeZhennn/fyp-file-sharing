@@ -26,19 +26,19 @@ export default function DefaultLayout() {
         const currentPath = window.location.pathname;
         let selected;
 
-        if (currentPath === '/myfiles') {
+        if (currentPath === '/fyp-file-sharing/myfiles') {
             selected = 0;
         }
-        else if (currentPath === '/sharedwithme') {
+        else if (currentPath === '/fyp-file-sharing/sharedwithme') {
             selected = 1;
         }
-        else if (currentPath === '/allfiles') {
+        else if (currentPath === '/fyp-file-sharing/allfiles') {
             selected = 2;
         }
-        else if (currentPath === '/sharerequests') {
+        else if (currentPath === '/fyp-file-sharing/sharerequests') {
             selected = 3;
         }
-        else if (currentPath === '/profile') {
+        else if (currentPath === '/fyp-file-sharing/profile') {
             selected = 4;
         }
 
@@ -46,7 +46,7 @@ export default function DefaultLayout() {
     }, [window.location.pathname])
 
     if (!token) {
-        return <Navigate to="/login" />
+        return <Navigate to="/fyp-file-sharing/login" />
     }
 
     const handleListItemClick = (ev, index) => {
@@ -87,20 +87,20 @@ export default function DefaultLayout() {
                 <Toolbar />
                 <Grid>
                     <List component="nav">
-                        <ListItemButton selected={selectedIndex === 0} onClick={(ev) => handleListItemClick(ev, 0)} component={Link} to="/myfiles">
+                        <ListItemButton selected={selectedIndex === 0} onClick={(ev) => handleListItemClick(ev, 0)} component={Link} to="/fyp-file-sharing/myfiles">
                             <ListItemText primary="My Files" sx={{ px: 1, }} />
                         </ListItemButton>
-                        <ListItemButton selected={selectedIndex === 1} onClick={(ev) => handleListItemClick(ev, 1)} component={Link} to="/sharedwithme">
+                        <ListItemButton selected={selectedIndex === 1} onClick={(ev) => handleListItemClick(ev, 1)} component={Link} to="/fyp-file-sharing/sharedwithme">
                             <ListItemText primary="Shared With Me" sx={{ px: 1, }} />
                         </ListItemButton>
-                        <ListItemButton selected={selectedIndex === 2} onClick={(ev) => handleListItemClick(ev, 2)} component={Link} to="/allfiles">
+                        <ListItemButton selected={selectedIndex === 2} onClick={(ev) => handleListItemClick(ev, 2)} component={Link} to="/fyp-file-sharing/allfiles">
                             <ListItemText primary="All Files" sx={{ px: 1, }} />
                         </ListItemButton>
-                        <ListItemButton selected={selectedIndex === 3} onClick={(ev) => handleListItemClick(ev, 3)} component={Link} to="/sharerequests">
+                        <ListItemButton selected={selectedIndex === 3} onClick={(ev) => handleListItemClick(ev, 3)} component={Link} to="/fyp-file-sharing/sharerequests">
                             <ListItemText primary="Share Requests" sx={{ px: 1, }} />
                         </ListItemButton>
                         <Divider />
-                        <ListItemButton selected={selectedIndex === 4} onClick={(ev) => handleListItemClick(ev, 4)} component={Link} to="/profile">
+                        <ListItemButton selected={selectedIndex === 4} onClick={(ev) => handleListItemClick(ev, 4)} component={Link} to="/fyp-file-sharing/profile">
                             <ListItemText primary="Profile" sx={{ px: 1, }} />
                         </ListItemButton>
                     </List>
