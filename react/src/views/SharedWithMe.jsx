@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import FileEditDialog from '../components/FileEditDialog.jsx';
 import Alert from '@mui/material/Alert';
 import Grid from '@mui/material/Grid';
@@ -19,6 +20,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 export default function SharedWithMe() {
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [files, setFiles] = useState([]);
     const [selectedFileId, setSelectedFileId] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -27,6 +29,7 @@ export default function SharedWithMe() {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
+        setIsLoading(true);
         getSharedFiles();
     }, [])
 
@@ -34,9 +37,11 @@ export default function SharedWithMe() {
         axiosClient.get('/shared-with-me')
             .then(({data}) => {
                 setFiles(data);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching file data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -99,6 +104,10 @@ export default function SharedWithMe() {
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
     
     return (

@@ -29,6 +29,8 @@ class SharedFile extends Model
         'file_id',
         'shared_with_user_id',
         'shared_permission_id',
+        'recrypt_pub',
+        'recrypt_capsule',
     ];
 
     protected $casts = [

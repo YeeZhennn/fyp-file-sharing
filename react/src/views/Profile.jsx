@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -16,7 +17,9 @@ export default function Profile() {
     const newPasswordRef = useRef();
     const newPasswordConfirmationRef = useRef();
 
-    const [errors, setErrors] = useState(null);
+    const [profileErrors, setProfileErrors] = useState(null);
+    const [passwordErrors, setPasswordErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [departmentOptions, setDepartmentOptions] = useState([]);
     const [roleOptions, setRoleOptions] = useState([]);
     const [name, setName] = useState('');
@@ -25,6 +28,7 @@ export default function Profile() {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
+        setIsLoading(true);
         getDepartments();
         getRoles();
         getProfileInfo();
@@ -56,9 +60,11 @@ export default function Profile() {
                 setName(data.name);
                 setDepId(data.department_id);
                 setRoleId(data.role_id);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching profile info data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -78,9 +84,16 @@ export default function Profile() {
             .catch((err) => {
                 const response = err.response;
                 if (response && response.status == 422) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setProfileErrors(response.data.errors);
+                    }
+                    else {
+                        setProfileErrors({
+                            user: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
-                        setErrors('');
+                        setProfileErrors('');
                     }, 6000);
                 }
             })
@@ -102,12 +115,23 @@ export default function Profile() {
             .catch((err) => {
                 const response = err.response;
                 if (response && response.status == 422) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setPasswordErrors(response.data.errors);
+                    }
+                    else {
+                        setPasswordErrors({
+                            password: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
-                        setErrors('');
+                        setPasswordErrors('');
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
     
     return (
@@ -117,53 +141,59 @@ export default function Profile() {
                     Profile
                 </Typography>
             </Grid>
-            {errors && <Alert severity="error" sx={{ mb: 2, alignItems: 'center', }}>
-                {errors}
+            {profileErrors && <Alert severity="error" sx={{ mb: 2, alignItems: 'center', }}>
+                {Object.keys(profileErrors).map(key => (
+                    <p key={key} style={{ margin: '5px' }}>{profileErrors[key][0]}</p>
+                ))}
             </Alert>
             }
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    <Paper elevation={4} sx={{ p: 2, height: 315, }}>
-                        <Typography variant="button" display="block" gutterBottom>
-                            Update Profile
-                        </Typography>
-                        <Divider sx={{ mb: 2, }} />
-                        <TextField id="name" label="Full Name" type="text" value={name} onChange={(ev) => setName(ev.target.value)} variant="filled" margin="dense" fullWidth required />
-                        <TextField id="dep_id" select label="Department" value={depId} onChange={(ev) => setDepId(ev.target.value)} variant="filled" margin="dense" fullWidth required>
-                            {departmentOptions.map((dep) => (
-                                <MenuItem key={dep.id} value={dep.id}>
-                                    {dep.dep_name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                        <TextField id="role_id" select label="Role" value={roleId} onChange={(ev) => setRoleId(ev.target.value)} variant="filled" margin="dense" fullWidth required>
-                            {roleOptions.map((role) => (
-                                <MenuItem key={role.id} value={role.id}>
-                                    {role.role_name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                        <Divider sx={{ mt: 2, }}/>
-                        <Stack direction="row" justifyContent="flex-end">
-                            <Button onClick={handleUpdateProfile} variant="outlined" sx={{ mt: 2, }}>Save</Button>
-                        </Stack>
-                    </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                    <Paper elevation={4} sx={{ p: 2, height: 340, }}>
-                        <Typography variant="button" display="block" gutterBottom>
-                            Update Password
-                        </Typography>
-                        <Divider sx={{ mb: 2, }} />
-                        <TextField id="current_password" label="Current Password" type="password" inputRef={currentPasswordRef} variant="filled" margin="dense" fullWidth required/>
-                        <TextField id="new_password" label="New Password" type="password" inputRef={newPasswordRef} helperText="Must be at least 8 characters (contains number, symbol, uppercase and lowercase letters)" variant="filled" margin="dense" fullWidth required/>
-                        <TextField id="new_password_confirmation" label="Confirm Password" type="password" inputRef={newPasswordConfirmationRef} variant="filled" margin="dense" fullWidth required/>
-                        <Divider sx={{ mt: 2, }}/>
-                        <Stack direction="row" justifyContent="flex-end">
-                            <Button onClick={handleUpdatePassword} variant="outlined" sx={{ mt: 2, }}>Save</Button>
-                        </Stack>
-                    </Paper>
-                </Grid>
+            <Grid item xs={12}>
+                <Paper elevation={4} sx={{ p: 2, mb: 2, height: 315, }}>
+                    <Typography variant="button" display="block" gutterBottom>
+                        Update Profile
+                    </Typography>
+                    <Divider sx={{ mb: 2, }} />
+                    <TextField id="name" label="Full Name" type="text" value={name} onChange={(ev) => setName(ev.target.value)} variant="filled" margin="dense" fullWidth required />
+                    <TextField id="dep_id" select label="Department" value={depId} onChange={(ev) => setDepId(ev.target.value)} variant="filled" margin="dense" fullWidth required>
+                        {departmentOptions.map((dep) => (
+                            <MenuItem key={dep.id} value={dep.id}>
+                                {dep.dep_name}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField id="role_id" select label="Role" value={roleId} onChange={(ev) => setRoleId(ev.target.value)} variant="filled" margin="dense" fullWidth required>
+                        {roleOptions.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                                {role.role_name}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                    <Divider sx={{ mt: 2, }}/>
+                    <Stack direction="row" justifyContent="flex-end">
+                        <Button onClick={handleUpdateProfile} variant="outlined" sx={{ mt: 2, }}>Save</Button>
+                    </Stack>
+                </Paper>
+            </Grid>
+            {passwordErrors && <Alert severity="error" sx={{ mb: 2, alignItems: 'center', }}>
+                {Object.keys(passwordErrors).map(key => (
+                    <p key={key} style={{ margin: '5px' }}>{passwordErrors[key][0]}</p>
+                ))}
+            </Alert>
+            }
+            <Grid item xs={12}>
+                <Paper elevation={4} sx={{ p: 2, height: 340, }}>
+                    <Typography variant="button" display="block" gutterBottom>
+                        Update Password
+                    </Typography>
+                    <Divider sx={{ mb: 2, }} />
+                    <TextField id="current_password" label="Current Password" type="password" inputRef={currentPasswordRef} variant="filled" margin="dense" fullWidth required/>
+                    <TextField id="new_password" label="New Password" type="password" inputRef={newPasswordRef} helperText="Must be at least 8 characters (contains number, symbol, uppercase and lowercase letters)" variant="filled" margin="dense" fullWidth required/>
+                    <TextField id="new_password_confirmation" label="Confirm Password" type="password" inputRef={newPasswordConfirmationRef} variant="filled" margin="dense" fullWidth required/>
+                    <Divider sx={{ mt: 2, }}/>
+                    <Stack direction="row" justifyContent="flex-end">
+                        <Button onClick={handleUpdatePassword} variant="outlined" sx={{ mt: 2, }}>Save</Button>
+                    </Stack>
+                </Paper>
             </Grid>
         </Grid>
     )

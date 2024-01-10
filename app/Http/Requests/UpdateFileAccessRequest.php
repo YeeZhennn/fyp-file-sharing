@@ -26,4 +26,11 @@ class UpdateFileAccessRequest extends FormRequest
             'shared_permission_id' => 'required|exists:permissions,id'
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'shared_permission_id.required' => 'Please select access permission.',
+        ];
+    }
 }

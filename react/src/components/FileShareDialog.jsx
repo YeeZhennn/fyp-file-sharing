@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import UpdateShareAccessDialog from '../components/UpdateShareAccessDialog.jsx';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -22,6 +23,7 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
     const userIdRef = useRef();
 
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [userOptions, setUserOptions] = useState([]);
     const [permissionOptions, setPermissionOptions] = useState([]);
     const [viewers, setViewers] = useState([]);
@@ -31,13 +33,14 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
     const {setNotification} = useStateContext();
 
     useEffect(() => {
-        if (fileId) {
+        if (isOpen && fileId) {
+            setIsLoading(true);
             getUsers();
             getSharePermissions();
             getViewers();
             getEditors();
         }
-    }, [fileId])
+    }, [isOpen, fileId])
 
     const getUsers = () => {
         axiosClient.get('/users-to-share')
@@ -73,9 +76,11 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
         axiosClient.get('/users-with-editor-access/' + fileId)
             .then(({data}) => {
                 setEditors(data);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching editors data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -112,7 +117,14 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
             .catch((err) => {
                 const response = err.response;
                 if (response && (response.status == 404 || response.status == 422)) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setErrors(response.data.errors);
+                    }
+                    else {
+                        setErrors({
+                            user: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
                         setErrors('');
                     }, 6000);
@@ -143,6 +155,10 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
             })
     }
 
+    if (isLoading) {
+        return <Loading />;
+    }
+
     return (
         <Dialog open={isOpen} onClose={handleClose} scroll="paper" fullWidth maxWidth="sm">
             <DialogTitle>
@@ -150,7 +166,9 @@ export default function FileShareDialog({ isOpen, onClose, fileId }) {
             </DialogTitle>
             <DialogContent dividers>
                 {errors && <Alert severity="error" sx={{ alignItems: 'center', }}>
-                    {errors}
+                    {Object.keys(errors).map(key => (
+                        <p key={key} style={{ margin: '5px' }}>{errors[key][0]}</p>
+                    ))}
                 </Alert>
                 }
                 <Grid sx={{ mb: 2, }}>

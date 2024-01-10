@@ -35,4 +35,13 @@ class UpdatePasswordRequest extends FormRequest
             ],
         ];
     }
+
+    public function messages()
+    {
+        return [
+            'current_password.required' => 'Please input the current password.',
+            'new_password.required' => 'Please input the new password.',
+            'new_password.confirmed' => 'The password fields do not match.',
+        ];
+    }
 }

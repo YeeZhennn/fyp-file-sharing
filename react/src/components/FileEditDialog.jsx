@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosClient from '../axios-client.js';
 import { useStateContext } from '../contexts/ContextProvider.jsx';
+import Loading from '../components/Loading.jsx';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -11,24 +12,28 @@ import TextField from '@mui/material/TextField';
 
 export default function FileEditDialog({ isOpen, onClose, fileId, editMode }) {
     const [errors, setErrors] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [fileName, setFileName] = useState('');
     const [fileDescription, setFileDescription] = useState('');
     const {setNotification} = useStateContext();
 
     useEffect(() => {
-        if (fileId) {
+        if (isOpen && fileId) {
+            setIsLoading(true);
             getFileEditInfo();
         }
-    }, [fileId])
+    }, [isOpen, fileId])
 
     const getFileEditInfo = () => {
         axiosClient.get('/file/' + fileId)
             .then(({data}) => {
                 setFileName(data.file_name);
                 setFileDescription(data.file_description);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.error('Error fetching file info data:', err);
+                setIsLoading(false);
             })
     }
 
@@ -61,12 +66,23 @@ export default function FileEditDialog({ isOpen, onClose, fileId, editMode }) {
             .catch((err) => {
                 const response = err.response;
                 if (response && (response.status == 404 || response.status == 422)) {
-                    setErrors(response.data.message);
+                    if (response.data.errors) {
+                        setErrors(response.data.errors);
+                    }
+                    else {
+                        setErrors({
+                            file: [response.data.message]
+                        });
+                    }
                     setTimeout(() => {
                         setErrors('');
                     }, 6000);
                 }
             })
+    }
+
+    if (isLoading) {
+        return <Loading />;
     }
 
     return (
@@ -76,7 +92,9 @@ export default function FileEditDialog({ isOpen, onClose, fileId, editMode }) {
             </DialogTitle>
             <DialogContent dividers>
                 {errors && <Alert severity="error" sx={{ alignItems: 'center', }}>
-                    {errors}
+                    {Object.keys(errors).map(key => (
+                        <p key={key} style={{ margin: '5px' }}>{errors[key][0]}</p>
+                    ))}
                 </Alert>
                 }
                 <TextField id="file_name" label="File Name" type="text" value={fileName} onChange={(ev) => setFileName(ev.target.value)} variant="filled" margin="dense" fullWidth required />

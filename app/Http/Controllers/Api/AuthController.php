@@ -8,6 +8,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
@@ -15,21 +16,37 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        /** @var \App\Models\User $user */
-        $user = User::create([
-            'name' => $credentials['name'],
-            'email' => $credentials['email'],
-            'password' => bcrypt($credentials['password']),
-            'department_id' => $credentials['department_id'],
-            'role_id' => $credentials['role_id'],
-        ]);
+        $goHost = env('GO_HOST');
+        $goPort = env('GO_PORT');
 
-        $token = $user->createToken('main')->plainTextToken;
+        $url = "http://{$goHost}:{$goPort}/generateKeys";
+        $goResponse = Http::get($url);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ], 201);
+        if ($goResponse->successful()) {
+            $goData = $goResponse->json();
+
+            /** @var \App\Models\User $user */
+            $user = User::create([
+                'name' => $credentials['name'],
+                'email' => $credentials['email'],
+                'password' => bcrypt($credentials['password']),
+                'department_id' => $credentials['department_id'],
+                'role_id' => $credentials['role_id'],
+                'public_key' => $goData['publicKey'],
+                'private_key' => $goData['privateKey'],
+            ]);
+
+            $token = $user->createToken('main')->plainTextToken;
+
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+            ], 201);
+        } else {
+            return response()->json([
+                'message' => 'Failed to fetch data from Golang.'
+            ], 500);
+        }
     }
 
     public function login(LoginRequest $request) 
@@ -38,7 +55,7 @@ class AuthController extends Controller
 
         if (!Auth::attempt($credentials)) {
             return response()->json([
-                'message' => 'Provided email address or password is incorrect.',
+                'message' => 'Provided credentials are incorrect.',
             ], 422);
         }
 
