@@ -12,45 +12,45 @@ import GuestLayout from './components/GuestLayout.jsx';
 
 const router = createBrowserRouter([
     {
-        path: "/",
+        path: "/fyp-file-sharing",
         element: <DefaultLayout />,
         children: [
             {
-                path: '/',
-                element: <Navigate to="/myfiles" />
+                path: '/fyp-file-sharing',
+                element: <Navigate to="/fyp-file-sharing/myfiles" />
             },
             {
-                path: '/myfiles',
+                path: '/fyp-file-sharing/myfiles',
                 element: <MyFiles />
             },
             {
-                path: '/sharedwithme',
+                path: '/fyp-file-sharing/sharedwithme',
                 element: <SharedWithMe />
             },
             {
-                path: '/allfiles',
+                path: '/fyp-file-sharing/allfiles',
                 element: <AllFiles />
             },
             {
-                path: '/sharerequests',
+                path: '/fyp-file-sharing/sharerequests',
                 element: <ShareRequests />
             },
             {
-                path: '/profile',
+                path: '/fyp-file-sharing/profile',
                 element: <Profile />
             },
         ]
     },
     {
-        path: "/",
+        path: "/fyp-file-sharing",
         element: <GuestLayout />,
         children: [
             {
-                path: '/login',
+                path: '/fyp-file-sharing/login',
                 element: <Login />
             },
             {
-                path: '/register',
+                path: '/fyp-file-sharing/register',
                 element: <Register />
             },
         ]
