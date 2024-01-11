@@ -69,7 +69,7 @@ export default function Login() {
                 <Button type='submit' variant='contained' size="large" sx={{ mt: 2, }} fullWidth>Log in</Button>
             </form>
             <Typography variant="overline" display="block" align="right" sx={{ mt: 1, }} gutterBottom>
-                Not Registered? <Link to="/fyp-file-sharing/register">Register an account</Link>
+                Not Registered? <Link to="/register">Register an account</Link>
             </Typography>
         </Paper>
     )

@@ -114,7 +114,7 @@ export default function Register() {
                 <Button type='submit' variant='contained' size="large" sx={{ mt: 2, }} fullWidth>Register</Button>
             </form>
             <Typography variant="overline" display="block" align="right" sx={{ mt: 1, }} gutterBottom>
-                Already Registered? <Link to="/fyp-file-sharing/login">Log in your account</Link>
+                Already Registered? <Link to="/login">Log in your account</Link>
             </Typography>
         </Paper>
     )
