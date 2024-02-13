@@ -6,8 +6,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"fmt"
-	"goRecrypt/curve"
-	"goRecrypt/recrypt"
+	"github.com/SherLzp/goRecrypt/curve"
+	"github.com/SherLzp/goRecrypt/recrypt"
 	"math/big"
 	"net/http"
 )
