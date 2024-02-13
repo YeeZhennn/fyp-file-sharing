@@ -1,66 +1,80 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## About Project
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This project develops a web-based file sharing platform using Laravel and React frameworks. This web platform is built on top of the decentralized storage protocol, InterPlanetary File System (IPFS) to store the files uploaded. For encryption part, AES is used for content encryption during file uploading while Proxy Re-Encryption (PRE) scheme is applied for encryption on the AES key during file sharing. 
 
-## About Laravel
+## Installation
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Setup the local environment by ensuring the following services have been installed.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### XAMPP
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+XAMPP provides PHP, Apache and MySQL services which are required by this project. Apache is used as the HTTP web server when using PHP, while MySQL is used as the project database. 
 
-## Learning Laravel
+- Install [XAMPP](https://www.apachefriends.org/download.html).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### IPFS
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+IPFS is used as the decentralized file storage protocol. 
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. Install [IPFS Kubo](https://docs.ipfs.tech/install/command-line/#install-official-binary-distributions).
+2. Unzip the file to any file directory, such as `C:/Program Files`.
+3. Navigate to the folder with the `cd C:/Program Files/kubo` command.
+4. Test that Kubo installed correctly with the `ipfs --version` command.
+5. Initialize IPFS node with the `ipfs init` command.
+6. Start the IPFS daemon with the `ipfs daemon` command.
 
-## Laravel Sponsors
+NOTE: The default gateway server port for IPFS daemon is 8080. Consider changing the `"Gateway"` port number in `/.ipfs/config` file if it is being used. 
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+```
+"Addresses": {
+    "Swarm": [
+      "/ip4/0.0.0.0/tcp/4001",
+      "/ip6/::/tcp/4001",
+      "/ip4/0.0.0.0/udp/4001/quic",
+      "/ip4/0.0.0.0/udp/4001/quic-v1",
+      "/ip4/0.0.0.0/udp/4001/quic-v1/webtransport",
+      "/ip6/::/udp/4001/quic",
+      "/ip6/::/udp/4001/quic-v1",
+      "/ip6/::/udp/4001/quic-v1/webtransport"
+    ],
+    "Announce": [],
+    "AppendAnnounce": [],
+    "NoAnnounce": [],
+    "API": "/ip4/127.0.0.1/tcp/5001",
+    "Gateway": "/ip4/127.0.0.1/tcp/8080"
+  },
+```
 
-### Premium Partners
+### Laravel and React Project Setup
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+To set up the environment for Laravel and React projects, 
 
-## Contributing
+1. Install [Composer](https://getcomposer.org/download/) and [Node.js](https://nodejs.org/en).
+2. Navigate to the `/xampp/htdocs` folder.
+3. Clone this project into the folder using `git clone` command.
+4. Open this project folder using any code editor.
+5. Copy `.env.example` into `.env`. Configure database and IPFS credentials.
+6. Open a new terminal and run `composer install`.
+7. Set the encryption key by executing `php artisan key:generate`.
+8. Run migration `php artisan migrate --seed`.
+9. Copy `react/.env.example` into `react/.env`. Adjust the `VITE_API_BASE_URL` parameter.
+10. Open a new terminal and navigate to the react folder `cd react`. Run `npm install`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Go
 
-## Code of Conduct
+Golang is used to run the Proxy Re-Encryption (PRE) process. 
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. Install [Go](https://go.dev/dl/) version 1.18.10. This specific version is required to use the PRE library package.
+2. Open a new terminal and navigate to the golang folder `cd golang`. 
+3. Disable the Go module system with the `go env -w GO111MODULE=off` command.
+4. Run `go get -v github.com/SherLzp/goRecrypt` and `go get -v golang.org/x/crypto/sha3` to install the required libraries.
 
-## Security Vulnerabilities
+## Run Project
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. Open the XAMPP Control Panel and make sure both Apache and MySQL services can be started successfully.
+2. Open this project folder using any code editor.
+3. Open a new terminal and navigate to the kubo folder `cd C:/Program Files/kubo`. Start the IPFS daemon by executing `ipfs daemon`.
+4. Open a new terminal and start the Laravel backend server by executing `php artisan serve`.
+5. Open a new terminal and run `php artisan schedule:work` to invoke the scheduler. 
+6. Open a new terminal and navigate to the react folder `cd react`. Start the vite server for React by executing `npm run dev`.
+7. Open a new terminal and navigate to the golang folder `cd golang`. Run `go run main.go`.  
